@@ -81,7 +81,7 @@ public class UIManager : MonoBehaviour
                 screen.canvasGroup.interactable = true;
                 screen.canvasGroup.blocksRaycasts = true;
                 
-                SaveLog(currentScreen.name);
+                // SaveLog(currentScreen.name);
             }
             else
             {
@@ -166,7 +166,7 @@ public class UIManager : MonoBehaviour
         currentScreen = nextScreen;
         isTransitioning = false;
 
-        SaveLog(currentScreen.name);
+        // SaveLog(currentScreen.name);
     }
 
     private IEnumerator FadeOutScreen(CanvasGroup canvasGroup)

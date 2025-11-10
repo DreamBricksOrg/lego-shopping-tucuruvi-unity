@@ -34,6 +34,8 @@ public class QRCODE : MonoBehaviour
    
     private void Update()
     {
+        OnEspaceKeyDown();
+
         if (!timerRunning)
             return;
 
@@ -45,6 +47,13 @@ public class QRCODE : MonoBehaviour
             timerRunning = false;
 
             SceneManager.LoadScene("SampleScene");
+        }
+    }
+
+    private void OnEspaceKeyDown(){
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            UIManager.Instance.OpenScreen("INSTRUCOES");
         }
     }
 
