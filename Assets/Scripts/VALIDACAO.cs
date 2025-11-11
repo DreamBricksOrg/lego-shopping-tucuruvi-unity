@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,8 +9,8 @@ public class VALIDACAO : MonoBehaviour
     public RawImage sendImage;
     public Button acceptButton;
     public Button rejectButton;
-    public string workflow = "default";
-
+    public GameObject spinner;
+    public float pollIntervalSeconds = 2f;
     public static Texture2D PendingImage;
 
     private ConfigManager config;
@@ -27,6 +28,8 @@ public class VALIDACAO : MonoBehaviour
             sendImage.texture = PendingImage;
             sendImage.SetNativeSize();
         }
+
+        if (spinner != null) spinner.SetActive(false);
 
         // Registrar handlers dos botões
         if (acceptButton != null) acceptButton.onClick.AddListener(OnAccept);
@@ -48,7 +51,12 @@ public class VALIDACAO : MonoBehaviour
             return;
         }
 
-        StartCoroutine(UploadImage(tex));
+        // Desativa botões e mostra spinner
+        if (acceptButton != null) acceptButton.interactable = false;
+        if (rejectButton != null) rejectButton.interactable = false;
+        if (spinner != null) spinner.SetActive(true);
+
+        StartCoroutine(UploadAndPoll(tex));
     }
 
     private void OnReject()
@@ -66,27 +74,34 @@ public class VALIDACAO : MonoBehaviour
         }
     }
 
-    private IEnumerator UploadImage(Texture texture)
+    [Serializable]
+    private class UploadResponse { public string status; public string request_id; public int position_in_queue; public float estimated_wait_seconds; public string error; }
+
+    [Serializable]
+    private class JobStatusResponse { public string status; public string image_url; public string error; }
+
+    private IEnumerator UploadAndPoll(Texture texture)
     {
         string baseUrl = null;
         try
         {
-            baseUrl = config?.GetValue("Net", "serverUrl");
+            baseUrl = config?.GetValue("Net", "comfyUIUrl");
+            if (string.IsNullOrEmpty(baseUrl)) baseUrl = config?.GetValue("Net", "API_URL");
         }
-        catch { /* Ignora erros de config */ }
+        catch { }
 
-        string url = string.IsNullOrEmpty(baseUrl) ? "/api/sendimage" : ($"{baseUrl.TrimEnd('/')}/api/sendimage");
+        string uploadUrl = $"{baseUrl.TrimEnd('/')}/upload";
 
-        // Garante Texture2D (converte se vier RenderTexture)
+        // Garante Texture2D
         Texture2D tex2D = texture as Texture2D;
         if (tex2D == null && texture is RenderTexture rt)
         {
             tex2D = ConvertRenderTextureToTexture2D(rt);
         }
-
         if (tex2D == null)
         {
             Debug.LogError("[VALIDACAO] Falha ao preparar imagem para upload.");
+            ResetUIAfterProcess();
             yield break;
         }
 
@@ -94,21 +109,108 @@ public class VALIDACAO : MonoBehaviour
 
         WWWForm form = new WWWForm();
         form.AddBinaryData("image", pngBytes, "image.png", "image/png");
-        form.AddField("workflow", workflow ?? string.Empty);
 
-        using (UnityWebRequest req = UnityWebRequest.Post(url, form))
+        using (UnityWebRequest req = UnityWebRequest.Post(uploadUrl, form))
         {
             yield return req.SendWebRequest();
-
             if (req.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError($"[VALIDACAO] Upload falhou: {req.error}");
+                ResetUIAfterProcess();
+                yield break;
             }
-            else
+
+            // Parse da resposta: espera request_id
+            UploadResponse up = null;
+            try { up = JsonUtility.FromJson<UploadResponse>(req.downloadHandler.text); }
+            catch (Exception ex)
             {
-                Debug.Log("[VALIDACAO] Upload realizado com sucesso.");
+                Debug.LogError($"[VALIDACAO] Erro ao parsear resposta de upload: {ex.Message}\n{req.downloadHandler.text}");
+                ResetUIAfterProcess();
+                yield break;
             }
+            if (up == null || string.IsNullOrEmpty(up.request_id))
+            {
+                Debug.LogError($"[VALIDACAO] Resposta inválida de upload, sem request_id. Corpo: {req.downloadHandler.text}");
+                ResetUIAfterProcess();
+                yield break;
+            }
+
+            // Polling do status
+            yield return StartCoroutine(PollJobStatus(baseUrl, up.request_id));
         }
+    }
+
+    private IEnumerator PollJobStatus(string baseUrl, string requestId)
+    {
+        string statusUrl = $"{baseUrl.TrimEnd('/')}/result?request_id={UnityWebRequest.EscapeURL(requestId)}";
+        while (true)
+        {
+            using (UnityWebRequest req = UnityWebRequest.Get(statusUrl))
+            {
+                yield return req.SendWebRequest();
+                if (req.result != UnityWebRequest.Result.Success)
+                {
+                    Debug.LogError($"[VALIDACAO] Falha ao consultar status: {req.error}");
+                    ResetUIAfterProcess();
+                    yield break;
+                }
+
+                JobStatusResponse js = null;
+                try { js = JsonUtility.FromJson<JobStatusResponse>(req.downloadHandler.text); }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[VALIDACAO] Erro ao parsear status: {ex.Message}\n{req.downloadHandler.text}");
+                    ResetUIAfterProcess();
+                    yield break;
+                }
+
+                if (js == null)
+                {
+                    Debug.LogError("[VALIDACAO] Resposta de status vazia.");
+                    ResetUIAfterProcess();
+                    yield break;
+                }
+
+                string st = (js.status ?? string.Empty).ToLowerInvariant();
+                switch (st)
+                {
+                    case "queued":
+                        // aguardando
+                        break;
+                    case "processing":
+                        // processando
+                        break;
+                    case "error":
+                        Debug.LogError($"[VALIDACAO] Erro no job: {js.error}");
+                        ResetUIAfterProcess();
+                        yield break;
+                    case "done":
+                        if (!string.IsNullOrEmpty(js.image_url))
+                        {
+                            PlayerPrefs.SetString("image_url", js.image_url);
+                            PlayerPrefs.Save();
+                        }
+                        if (UIManager.Instance != null)
+                        {
+                            UIManager.Instance.OpenScreen("AGRADECIMENTO");
+                        }
+                        ResetUIAfterProcess();
+                        yield break;
+                    default:
+                        Debug.LogWarning($"[VALIDACAO] Status desconhecido: {js.status}");
+                        break;
+                }
+            }
+            yield return new WaitForSeconds(pollIntervalSeconds);
+        }
+    }
+
+    private void ResetUIAfterProcess()
+    {
+        if (spinner != null) spinner.SetActive(false);
+        if (acceptButton != null) acceptButton.interactable = true;
+        if (rejectButton != null) rejectButton.interactable = true;
     }
 
     private Texture2D ConvertRenderTextureToTexture2D(RenderTexture rt)

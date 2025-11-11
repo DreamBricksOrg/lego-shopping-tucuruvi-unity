@@ -48,6 +48,18 @@ public class QRCODE : MonoBehaviour
 
             SceneManager.LoadScene("SampleScene");
         }
+
+        if (UDPReceiver.Instance != null)
+        {
+            string latest = UDPReceiver.Instance.GetLastestData();
+            if (!string.IsNullOrEmpty(latest))
+            {
+                if (latest.ToUpper() == "INSTRUCOES")
+                {
+                    UIManager.Instance.OpenScreen(latest.ToUpper());
+                }
+            }
+        }
     }
 
     private void OnEspaceKeyDown(){
@@ -68,7 +80,7 @@ public class QRCODE : MonoBehaviour
 
     private IEnumerator FetchAndApplyQr()
     {
-        string endpoint = (serverUrl ?? string.Empty).TrimEnd('/') + "/api/qrgen";
+        string endpoint = (serverUrl ?? string.Empty).TrimEnd('/') + "/totem/qrcode/init";
 
         using (UnityWebRequest req = UnityWebRequest.Get(endpoint))
         {

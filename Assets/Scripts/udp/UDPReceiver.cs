@@ -4,11 +4,11 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using Unity.VisualScripting;
 
 
 public class UDPReceiver : MonoBehaviour
 {
+    public static UDPReceiver Instance;
     Thread receiverThread;
     UdpClient client;
     public int port;
@@ -22,14 +22,22 @@ public class UDPReceiver : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
         config = new();
         udpPort = config.GetValue("Net", "udpReceiverPort");
-        port = int.Parse(udpPort);
+        if (!int.TryParse(udpPort, out port))
+        {
+            port = 8000;
+            Debug.LogWarning($"[UDPReceiver] Porta inválida em config: '{udpPort}'. Usando {port}.");
+        }
+        myQueue = new LockFreeQueue<string>();
     }
 
     public void Start()
     {
-        myQueue = new LockFreeQueue<string>();
         receiverThread = new Thread(
             new ThreadStart(ReceiveData));
         receiverThread.IsBackground = true;
@@ -60,6 +68,7 @@ public class UDPReceiver : MonoBehaviour
 
     public string GetData()
     {
+        if (myQueue == null) return "";
         if (myQueue.Empty()) return "";
 
         return myQueue.Dequeue();
