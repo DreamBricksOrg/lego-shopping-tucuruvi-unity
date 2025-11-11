@@ -1,4 +1,3 @@
-using UnityEditor.SearchService;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -82,8 +81,12 @@ public class QRCODE : MonoBehaviour
     {
         string endpoint = (serverUrl ?? string.Empty).TrimEnd('/') + "/totem/qrcode/init";
 
-        using (UnityWebRequest req = UnityWebRequest.Get(endpoint))
+        using (UnityWebRequest req = new UnityWebRequest(endpoint, UnityWebRequest.kHttpVerbPOST))
         {
+            req.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes("{}"));
+            req.downloadHandler = new DownloadHandlerBuffer();
+            req.SetRequestHeader("Content-Type", "application/json");
+
             yield return req.SendWebRequest();
 
 #if UNITY_2020_1_OR_NEWER

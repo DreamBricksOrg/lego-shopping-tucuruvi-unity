@@ -86,11 +86,11 @@ public class VALIDACAO : MonoBehaviour
         try
         {
             baseUrl = config?.GetValue("Net", "comfyUIUrl");
-            if (string.IsNullOrEmpty(baseUrl)) baseUrl = config?.GetValue("Net", "API_URL");
+            Debug.Log($"[VALIDACAO] comfyUIUrl: {baseUrl}");
         }
         catch { }
 
-        string uploadUrl = $"{baseUrl.TrimEnd('/')}/upload";
+        string uploadUrl = $"{baseUrl.TrimEnd('/')}/api/upload";
 
         // Garante Texture2D
         Texture2D tex2D = texture as Texture2D;
@@ -143,7 +143,7 @@ public class VALIDACAO : MonoBehaviour
 
     private IEnumerator PollJobStatus(string baseUrl, string requestId)
     {
-        string statusUrl = $"{baseUrl.TrimEnd('/')}/result?request_id={UnityWebRequest.EscapeURL(requestId)}";
+        string statusUrl = $"{baseUrl.TrimEnd('/')}/api/result?request_id={UnityWebRequest.EscapeURL(requestId)}";
         while (true)
         {
             using (UnityWebRequest req = UnityWebRequest.Get(statusUrl))

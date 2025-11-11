@@ -342,7 +342,7 @@ MonoBehaviour:
   timerRunning: 0
   totalTime: 0
   currentTime: 0
-  qrCodeImage: {fileID: 0}
+  qrCodeImage: {fileID: 1348568679}
 --- !u!1 &53153793
 GameObject:
   m_ObjectHideFlags: 0
