@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "com.br.dreambricks.dblayoutconfig": "file:C:/Users/db/Documents/db/prj/dreambricks/config_package/Assets/Packages/dblayoutconfig",
+    "com.br.dreambricks.dblayoutconfig": "https://github.com/DreamBricksOrg/config_package_unity.git?path=Assets/Packages/dblayoutconfig",
+    "com.dreambricks.logcentersdk": "https://github.com/DreamBricksOrg/logcenter_sdk.git?path=Assets/Packages/LogCenter#Unity",
     "com.unity.collab-proxy": "2.10.1",
     "com.unity.feature.development": "1.0.2",
     "com.unity.inputsystem": "1.14.2",

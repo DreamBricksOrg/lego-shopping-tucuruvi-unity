@@ -60,6 +60,8 @@ public class WebcamToRenderTexture : MonoBehaviour
 
     void Awake()
     {
+        ApplyCamSettingsFromConfig();
+
         // Carrega rotação do config.ini o mais cedo possível
         if (useRotationFromConfig)
         {
@@ -84,6 +86,7 @@ public class WebcamToRenderTexture : MonoBehaviour
         }
 
         // Mantém leitura também no Start, caso Awake seja chamado em ordem diferente
+        ApplyCamSettingsFromConfig();
         if (useRotationFromConfig)
         {
             ApplyRotationFromConfig();
@@ -207,10 +210,6 @@ public class WebcamToRenderTexture : MonoBehaviour
                         useDynamicScale = false
                     };
                 }
-                else
-                {
-                    Debug.LogWarning($"[WebcamToRenderTexture] Saída ({outWidth}x{outHeight}) difere do RenderTexture atribuído ({target.width}x{target.height}).");
-                }
             }
         }
     }
@@ -326,6 +325,102 @@ public class WebcamToRenderTexture : MonoBehaviour
         {
             Debug.LogWarning($"[WebcamToRenderTexture] Falha ao ler rotação do config.ini: {ex.Message}");
         }
+    }
+
+    private void ApplyCamSettingsFromConfig()
+    {
+        try
+        {
+            if (config == null) config = new ConfigManager();
+
+            // deviceIndex
+            string di = config.GetValue("Cam", "deviceIndex");
+            if (string.IsNullOrEmpty(di)) di = config.GetValue("Cam", "DeviceIndex");
+            if (string.IsNullOrEmpty(di))
+            {
+                di = ReadIniValueDirect("Cam", "deviceIndex") ?? ReadIniValueDirect("Cam", "DeviceIndex");
+            }
+            if (!string.IsNullOrEmpty(di) && int.TryParse(di, out int deviceIdx))
+            {
+                deviceIndex = deviceIdx;
+            }
+
+            // width
+            string w = config.GetValue("Cam", "width");
+            if (string.IsNullOrEmpty(w)) w = config.GetValue("Cam", "Width");
+            if (string.IsNullOrEmpty(w))
+            {
+                w = ReadIniValueDirect("Cam", "width") ?? ReadIniValueDirect("Cam", "Width");
+            }
+            if (!string.IsNullOrEmpty(w) && int.TryParse(w, out int widthVal))
+            {
+                requestedWidth = widthVal;
+            }
+
+            // height
+            string h = config.GetValue("Cam", "height");
+            if (string.IsNullOrEmpty(h)) h = config.GetValue("Cam", "Height");
+            if (string.IsNullOrEmpty(h))
+            {
+                h = ReadIniValueDirect("Cam", "height") ?? ReadIniValueDirect("Cam", "Height");
+            }
+            if (!string.IsNullOrEmpty(h) && int.TryParse(h, out int heightVal))
+            {
+                requestedHeight = heightVal;
+            }
+
+            // fps
+            string f = config.GetValue("Cam", "fps");
+            if (string.IsNullOrEmpty(f)) f = config.GetValue("Cam", "FPS");
+            if (string.IsNullOrEmpty(f))
+            {
+                f = ReadIniValueDirect("Cam", "fps") ?? ReadIniValueDirect("Cam", "FPS");
+            }
+            if (!string.IsNullOrEmpty(f) && int.TryParse(f, out int fpsVal))
+            {
+                requestedFPS = fpsVal;
+            }
+
+            // flipHorizontal
+            string fh = config.GetValue("Cam", "flipHorizontal");
+            if (string.IsNullOrEmpty(fh)) fh = config.GetValue("Cam", "FlipHorizontal");
+            if (string.IsNullOrEmpty(fh))
+            {
+                fh = ReadIniValueDirect("Cam", "flipHorizontal") ?? ReadIniValueDirect("Cam", "FlipHorizontal") ?? ReadIniValueDirect("Cam", "flipX") ?? ReadIniValueDirect("Cam", "FlipX");
+            }
+            if (TryParseBoolFlexible(fh, out bool fhVal))
+            {
+                flipHorizontal = fhVal;
+            }
+
+            // flipVertical
+            string fv = config.GetValue("Cam", "flipVertical");
+            if (string.IsNullOrEmpty(fv)) fv = config.GetValue("Cam", "FlipVertical");
+            if (string.IsNullOrEmpty(fv))
+            {
+                fv = ReadIniValueDirect("Cam", "flipVertical") ?? ReadIniValueDirect("Cam", "FlipVertical") ?? ReadIniValueDirect("Cam", "flipY") ?? ReadIniValueDirect("Cam", "FlipY");
+            }
+            if (TryParseBoolFlexible(fv, out bool fvVal))
+            {
+                flipVertical = fvVal;
+            }
+
+            Debug.Log($"[WebcamToRenderTexture] Config aplicada: deviceIndex={deviceIndex}, size={requestedWidth}x{requestedHeight}, fps={requestedFPS}, flipX={flipHorizontal}, flipY={flipVertical}");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[WebcamToRenderTexture] Falha ao ler parâmetros da câmera do config.ini: {ex.Message}");
+        }
+    }
+
+    private bool TryParseBoolFlexible(string s, out bool value)
+    {
+        value = false;
+        if (string.IsNullOrEmpty(s)) return false;
+        var t = s.Trim().ToLowerInvariant();
+        if (t == "true" || t == "1" || t == "yes" || t == "on") { value = true; return true; }
+        if (t == "false" || t == "0" || t == "no" || t == "off") { value = false; return true; }
+        return false;
     }
 
     private string ReadIniValueDirect(string section, string key)

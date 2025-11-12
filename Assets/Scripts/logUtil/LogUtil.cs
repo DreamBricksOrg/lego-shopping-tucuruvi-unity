@@ -11,7 +11,7 @@ public class LogUtil : MonoBehaviour
 
     public static void SaveLog(DataLog dataLog)
     {
-        string folderPath = Path.Combine(Application.persistentDataPath, "data_logs");
+        string folderPath = Path.Combine(Application.persistentDataPath, "datalogs_old");
 
         if (!Directory.Exists(folderPath))
         {

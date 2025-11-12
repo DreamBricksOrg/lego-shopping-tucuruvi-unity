@@ -23,7 +23,7 @@ public class LogDataUploader : MonoBehaviour
     private void Awake()
     {
         config = new();
-        uploadURL = config.GetValue("Net", "dbutils");
+        uploadURL = config.GetValue("Net", "dbutilsOld");
     }
 
 

@@ -1,10 +1,18 @@
 {
   "dependencies": {
     "com.br.dreambricks.dblayoutconfig": {
-      "version": "file:C:/Users/db/Documents/db/prj/dreambricks/config_package/Assets/Packages/dblayoutconfig",
+      "version": "https://github.com/DreamBricksOrg/config_package_unity.git?path=Assets/Packages/dblayoutconfig",
       "depth": 0,
-      "source": "local",
-      "dependencies": {}
+      "source": "git",
+      "dependencies": {},
+      "hash": "82d3e4c38cd10cf3200e3faee10a7e0e4fb2b416"
+    },
+    "com.dreambricks.logcentersdk": {
+      "version": "https://github.com/DreamBricksOrg/logcenter_sdk.git?path=Assets/Packages/LogCenter#Unity",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "58369f09bfd31d0d0aae371f94f454c7a4563009"
     },
     "com.unity.collab-proxy": {
       "version": "2.10.1",

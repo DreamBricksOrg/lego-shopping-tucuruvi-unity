@@ -81,7 +81,7 @@ public class UIManager : MonoBehaviour
                 screen.canvasGroup.interactable = true;
                 screen.canvasGroup.blocksRaycasts = true;
                 
-                // SaveLog(currentScreen.name);
+                SaveLog(currentScreen.name);
             }
             else
             {
@@ -166,7 +166,7 @@ public class UIManager : MonoBehaviour
         currentScreen = nextScreen;
         isTransitioning = false;
 
-        // SaveLog(currentScreen.name);
+        SaveLog(currentScreen.name);
     }
 
     private IEnumerator FadeOutScreen(CanvasGroup canvasGroup)
@@ -259,6 +259,7 @@ public class UIManager : MonoBehaviour
     void SaveLog(string screenName)
     {
         StartCoroutine(SaveLogCoroutine(screenName));
+        StartCoroutine(SaveLogInNewLogCenterCoroutine($"TOTEM_{screenName}", "INFO", new List<string> { "totem" }));
     }
 
     IEnumerator SaveLogCoroutine(string screenName)
@@ -275,6 +276,25 @@ public class UIManager : MonoBehaviour
                 Debug.LogError("Erro ao carregar o DataLog do JSON.");
             }
         });
+    }
+
+    IEnumerator SaveLogInNewLogCenterCoroutine(string message, string level, List<string> tags, string additional = "")
+    {
+        yield return LogUtilSdk.GetDatalogFromJsonCoroutine((dataLog) =>
+       {
+           if (dataLog != null)
+           {
+               dataLog.message = message;
+               dataLog.level = level;
+               dataLog.tags = tags;
+               dataLog.data = new { };
+               LogUtilSdk.SaveLogToJson(dataLog);
+           }
+           else
+           {
+               Debug.LogError("Erro ao carregar o DataLog do JSON.");
+           }
+       });
     }
 
     // Método para parar todas as animações em caso de necessidade
