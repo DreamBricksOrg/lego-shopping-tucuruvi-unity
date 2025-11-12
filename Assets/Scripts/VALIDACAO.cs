@@ -18,6 +18,7 @@ public class VALIDACAO : MonoBehaviour
     public float pollIntervalSeconds = 2f;
     public float spinnerRotateSpeed = 180f; // graus por segundo
     public static Texture2D PendingImage;
+    private bool isProcessing = false;
 
 
     private void Awake()
@@ -30,6 +31,7 @@ public class VALIDACAO : MonoBehaviour
     {
         currentTime = totalTime;
         timerRunning = true;
+        isProcessing = false;
         
         // Popular a imagem capturada, se houver
         if (sendImage != null && PendingImage != null)
@@ -63,10 +65,12 @@ public class VALIDACAO : MonoBehaviour
             currentTime = 0;
             timerRunning = false;
 
-            SceneManager.LoadScene("SampleScene");
+            if (!isProcessing)
+            {
+                SceneManager.LoadScene("SampleScene");
+            }
         }
         
-        // Gira o spinner continuamente no eixo Z enquanto estiver ativo
         if (spinner != null && spinner.activeInHierarchy)
         {
             spinner.transform.Rotate(0f, 0f, spinnerRotateSpeed * Time.deltaTime);
@@ -86,6 +90,7 @@ public class VALIDACAO : MonoBehaviour
         if (acceptButton != null) acceptButton.interactable = false;
         if (rejectButton != null) rejectButton.interactable = false;
         if (spinner != null) spinner.SetActive(true);
+        isProcessing = true;
 
         StartCoroutine(UploadAndPoll(tex));
     }
@@ -95,6 +100,7 @@ public class VALIDACAO : MonoBehaviour
         // Limpa a imagem pendente e volta para a tela de CAPTURA
         PendingImage = null;
         if (sendImage != null) sendImage.texture = null;
+        isProcessing = false;
         if (UIManager.Instance != null)
         {
             UIManager.Instance.OpenScreen("CAPTURA");
@@ -242,6 +248,7 @@ public class VALIDACAO : MonoBehaviour
         if (spinner != null) spinner.SetActive(false);
         if (acceptButton != null) acceptButton.interactable = true;
         if (rejectButton != null) rejectButton.interactable = true;
+        isProcessing = false;
     }
 
     private Texture2D ConvertRenderTextureToTexture2D(RenderTexture rt)
