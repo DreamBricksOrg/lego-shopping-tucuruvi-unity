@@ -13,7 +13,7 @@ public class AGRADECIMENTO : MonoBehaviour
     public float currentTime;
     private string serverUrl;
 
-    // public RawImage qrCodeImage;
+    public RawImage qrCodeImage;
 
     public RawImage resultImage;
     private Vector2 resultImageInitialSize;
@@ -43,6 +43,8 @@ public class AGRADECIMENTO : MonoBehaviour
         {
             StartCoroutine(LoadImageFromUrl(imageUrl));
         }
+
+        StartCoroutine(FetchAndApplyQr());
 
     }
 
@@ -102,6 +104,85 @@ public class AGRADECIMENTO : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             SceneManager.LoadScene("SampleScene");
+        }
+    }
+
+    [System.Serializable]
+    private class QrGenResponse
+    {
+        public string qr_png;
+        public string qr_svg;
+        public string short_url;
+        public string slug;
+    }
+
+    private IEnumerator FetchAndApplyQr()
+    {
+        string baseUrl = (serverUrl ?? string.Empty).TrimEnd('/');
+        string imageUrl = PlayerPrefs.GetString("image_url", string.Empty);
+        string longUrl = baseUrl + "/api/lego/resultado?image_url=" + System.Uri.EscapeDataString(imageUrl);
+        string endpoint = baseUrl + "/totem/qrcode/create?long_url=" + System.Uri.EscapeDataString(longUrl);
+
+        using (UnityWebRequest req = UnityWebRequest.Get(endpoint))
+        {
+            req.downloadHandler = new DownloadHandlerBuffer();
+
+            yield return req.SendWebRequest();
+
+#if UNITY_2020_1_OR_NEWER
+            if (req.result != UnityWebRequest.Result.Success)
+#else
+            if (req.isNetworkError || req.isHttpError)
+#endif
+            {
+                Debug.LogError($"Falha ao obter QR em '{endpoint}': {req.error}");
+                yield break;
+            }
+
+            var json = req.downloadHandler.text;
+            QrGenResponse resp = null;
+            try
+            {
+                resp = JsonUtility.FromJson<QrGenResponse>(json);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"Erro ao parsear JSON da resposta: {ex.Message}\nConteúdo: {json}");
+                yield break;
+            }
+
+            if (resp == null || string.IsNullOrEmpty(resp.qr_png))
+            {
+                Debug.LogError("Resposta inválida: campo 'qr_png' ausente ou vazio.");
+                yield break;
+            }
+
+            using (UnityWebRequest texReq = UnityWebRequestTexture.GetTexture(resp.qr_png))
+            {
+                yield return texReq.SendWebRequest();
+
+#if UNITY_2020_1_OR_NEWER
+                if (texReq.result != UnityWebRequest.Result.Success)
+#else
+                if (texReq.isNetworkError || texReq.isHttpError)
+#endif
+                {
+                    Debug.LogError($"Falha ao baixar PNG do QR: {texReq.error}");
+                    yield break;
+                }
+
+                Texture2D tex = DownloadHandlerTexture.GetContent(texReq);
+                if (qrCodeImage != null)
+                {
+                    qrCodeImage.texture = tex;
+                    // Se quiser ajustar o tamanho do RawImage à textura:
+                    // qrCodeImage.SetNativeSize();
+                }
+                else
+                {
+                    Debug.LogWarning("qrCodeImage não está atribuído no Inspector.");
+                }
+            }
         }
     }
 }

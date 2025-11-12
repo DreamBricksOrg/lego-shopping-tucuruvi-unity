@@ -611,7 +611,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WebcamToRenderTexture
   deviceName: 
-  deviceIndex: 0
+  deviceIndex: 1
   requestedWidth: 1080
   requestedHeight: 1920
   requestedFPS: 60
@@ -683,7 +683,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 2800000, guid: c4c548a339b4d41a590928c0c98934a7, type: 3}
+  m_Texture: {fileID: 2800000, guid: 3bb6f2f1fe1b3ed498eb5fa946d9ebc6, type: 3}
   m_UVRect:
     serializedVersion: 2
     x: 0
@@ -1439,6 +1439,7 @@ MonoBehaviour:
   timerRunning: 0
   totalTime: 0
   currentTime: 0
+  qrCodeImage: {fileID: 666764516}
   resultImage: {fileID: 1507590901}
 --- !u!1 &963194225
 GameObject:
@@ -2087,8 +2088,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 25, y: 0}
-  m_SizeDelta: {x: 550, y: 970}
+  m_AnchoredPosition: {x: 20.193985, y: 0}
+  m_SizeDelta: {x: 581.973, y: 970}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1507590901
 MonoBehaviour:

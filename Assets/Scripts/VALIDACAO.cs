@@ -3,9 +3,14 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
 
 public class VALIDACAO : MonoBehaviour
 {
+    private ConfigManager config;
+    public bool timerRunning;
+    public float totalTime;
+    public float currentTime;
     public RawImage sendImage;
     public Button acceptButton;
     public Button rejectButton;
@@ -14,15 +19,18 @@ public class VALIDACAO : MonoBehaviour
     public float spinnerRotateSpeed = 180f; // graus por segundo
     public static Texture2D PendingImage;
 
-    private ConfigManager config;
 
     private void Awake()
     {
-        config = new ConfigManager();
+        config = new();
+        totalTime = float.Parse(config.GetValue("Timer", "VALIDACAO"));
     }
 
     private void OnEnable()
     {
+        currentTime = totalTime;
+        timerRunning = true;
+        
         // Popular a imagem capturada, se houver
         if (sendImage != null && PendingImage != null)
         {
@@ -45,6 +53,19 @@ public class VALIDACAO : MonoBehaviour
 
     private void Update()
     {
+        if (!timerRunning)
+            return;
+
+        currentTime -= Time.deltaTime;
+
+        if (currentTime <= 0)
+        {
+            currentTime = 0;
+            timerRunning = false;
+
+            SceneManager.LoadScene("SampleScene");
+        }
+        
         // Gira o spinner continuamente no eixo Z enquanto estiver ativo
         if (spinner != null && spinner.activeInHierarchy)
         {
