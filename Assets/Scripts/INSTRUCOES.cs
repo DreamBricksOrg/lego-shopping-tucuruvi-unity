@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Networking;
+using System.Collections.Generic;
 using System.Collections;
 
 
@@ -44,7 +45,7 @@ public class INSTRUCOES : MonoBehaviour
             {
                 currentTime = 0;
                 timerRunning = false;
-                SceneManager.LoadScene("SampleScene");
+                SaveLog("TOTEM_INSTRUCOES_TEMPO_ESGOTADO");
             }
         }
 
@@ -64,6 +65,50 @@ public class INSTRUCOES : MonoBehaviour
         {
             circleButton.color = circleInitialColor;
         }
+    }
+
+    void SaveLog(string message, string additional="")
+    {
+        StartCoroutine(SaveLogCoroutine(message, additional));
+        StartCoroutine(SaveLogInNewLogCenterCoroutine(message, "INFO", new List<string> { "totem" }, additional));
+    }
+
+     IEnumerator SaveLogCoroutine(string message,string additional)
+    {
+        yield return LogUtil.GetDatalogFromJsonCoroutine((dataLog) =>
+        {
+            if (dataLog != null)
+            {
+                dataLog.status = message;
+                dataLog.additional = additional;
+                LogUtil.SaveLog(dataLog);
+            }
+            else
+            {
+                Debug.LogError("Erro ao carregar o DataLog do JSON.");
+            }
+        });
+    }
+
+    IEnumerator SaveLogInNewLogCenterCoroutine(string message, string level, List<string> tags, string additional)
+    {
+        yield return LogUtilSdk.GetDatalogFromJsonCoroutine((dataLog) =>
+       {
+           if (dataLog != null)
+           {
+                dataLog.message = message;
+                dataLog.level = level;
+                dataLog.tags = tags;
+                dataLog.data = new { additional };
+                LogUtilSdk.SaveLogToJson(dataLog);
+           }
+           else
+           {
+               Debug.LogError("Erro ao carregar o DataLog do JSON.");
+           }
+                SceneManager.LoadScene("SampleScene");
+
+       });
     }
 
 }

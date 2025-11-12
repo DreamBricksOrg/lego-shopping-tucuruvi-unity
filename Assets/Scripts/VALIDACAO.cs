@@ -68,6 +68,7 @@ public class VALIDACAO : MonoBehaviour
 
             if (!isProcessing)
             {
+                SaveLog("TOTEM_VALIDACAO_TEMPO_ESGOTADO");
                 SceneManager.LoadScene("SampleScene");
             }
         }
@@ -278,7 +279,7 @@ public class VALIDACAO : MonoBehaviour
         }
     }
 
-    void SaveLog(string message, string additional)
+    void SaveLog(string message, string additional = "")
     {
         StartCoroutine(SaveLogCoroutine(message, additional));
         StartCoroutine(SaveLogInNewLogCenterCoroutine(message, "INFO", new List<string> { "totem" }, additional));
@@ -301,7 +302,7 @@ public class VALIDACAO : MonoBehaviour
         });
     }
 
-    IEnumerator SaveLogInNewLogCenterCoroutine(string message, string level, List<string> tags, string additional = "")
+    IEnumerator SaveLogInNewLogCenterCoroutine(string message, string level, List<string> tags, string additional)
     {
         yield return LogUtilSdk.GetDatalogFromJsonCoroutine((dataLog) =>
        {
