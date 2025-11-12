@@ -16,6 +16,7 @@ public class AGRADECIMENTO : MonoBehaviour
     // public RawImage qrCodeImage;
 
     public RawImage resultImage;
+    private Vector2 resultImageInitialSize;
 
 
     private void Awake()
@@ -30,7 +31,14 @@ public class AGRADECIMENTO : MonoBehaviour
         currentTime = totalTime;
         timerRunning = true;
 
+        if (resultImage != null)
+        {
+            // Guarda o tamanho configurado no Editor para reaplicar após carregar a textura
+            resultImageInitialSize = resultImage.rectTransform.sizeDelta;
+        }
+
         string imageUrl = PlayerPrefs.GetString("image_url", string.Empty);
+        Debug.Log($"[AGRADECIMENTO] imageUrl: {imageUrl}");
         if (!string.IsNullOrEmpty(imageUrl) && resultImage != null)
         {
             StartCoroutine(LoadImageFromUrl(imageUrl));
@@ -83,7 +91,8 @@ public class AGRADECIMENTO : MonoBehaviour
             if (tex != null && resultImage != null)
             {
                 resultImage.texture = tex;
-                resultImage.SetNativeSize();
+                // Reaplica o tamanho definido no Editor (não usar SetNativeSize)
+                resultImage.rectTransform.sizeDelta = resultImageInitialSize;
             }
         }
     }

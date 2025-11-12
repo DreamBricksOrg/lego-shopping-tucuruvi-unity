@@ -11,6 +11,7 @@ public class VALIDACAO : MonoBehaviour
     public Button rejectButton;
     public GameObject spinner;
     public float pollIntervalSeconds = 2f;
+    public float spinnerRotateSpeed = 180f; // graus por segundo
     public static Texture2D PendingImage;
 
     private ConfigManager config;
@@ -40,6 +41,15 @@ public class VALIDACAO : MonoBehaviour
     {
         if (acceptButton != null) acceptButton.onClick.RemoveListener(OnAccept);
         if (rejectButton != null) rejectButton.onClick.RemoveListener(OnReject);
+    }
+
+    private void Update()
+    {
+        // Gira o spinner continuamente no eixo Z enquanto estiver ativo
+        if (spinner != null && spinner.activeInHierarchy)
+        {
+            spinner.transform.Rotate(0f, 0f, spinnerRotateSpeed * Time.deltaTime);
+        }
     }
 
     private void OnAccept()
