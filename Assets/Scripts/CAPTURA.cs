@@ -11,11 +11,19 @@ public class CAPTURA : MonoBehaviour
 
     private Coroutine countdownRoutine;
 
+    public RawImage whiteImage;
+
     private void OnEnable()
     {
         if (countdownRoutine != null)
         {
             StopCoroutine(countdownRoutine);
+        }
+
+        // Garante que o flash (whiteImage) inicie desativado sempre
+        if (whiteImage != null)
+        {
+            whiteImage.gameObject.SetActive(false);
         }
         countdownRoutine = StartCoroutine(CaptureCountdownAndSnap());
     }
@@ -31,11 +39,27 @@ public class CAPTURA : MonoBehaviour
             yield return new WaitForSeconds(1f);
         }
 
+        // Exibe o flash por 1 segundo no momento da captura
+        if (whiteImage != null)
+        {
+            whiteImage.gameObject.SetActive(true);
+        }
+
+        // Mantém o flash visível por 1 segundo
+        yield return new WaitForSeconds(1f);
+
         // Aguarda o fim do frame para garantir que a RenderTexture foi atualizada pela GPU
         yield return new WaitForEndOfFrame();
 
         // Captura a RenderTexture da webcam em um Texture2D
         Texture2D snapshot = CaptureFromRenderTexture(webcamRenderTexture);
+
+        // Desativa o flash imediatamente após a captura
+        if (whiteImage != null)
+        {
+            whiteImage.gameObject.SetActive(false);
+        }
+
         if (snapshot == null)
         {
             Debug.LogWarning("[CAPTURA] Falha ao capturar imagem da webcam. RenderTexture não atribuída.");
