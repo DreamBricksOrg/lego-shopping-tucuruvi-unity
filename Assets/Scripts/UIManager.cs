@@ -223,6 +223,30 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // Desabilita todas as telas imediatamente (sem animação)
+    public void DisableAllScreens()
+    {
+        // Para quaisquer animações em andamento para evitar estados inconsistentes
+        StopAllAnimations();
+
+        foreach (var screen in screens)
+        {
+            if (screen?.screenObject == null) continue;
+
+            var canvasGroup = screen.screenObject.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 0f;
+                canvasGroup.interactable = false;
+                canvasGroup.blocksRaycasts = false;
+            }
+
+            screen.screenObject.SetActive(false);
+        }
+
+        currentScreen = null;
+    }
+
     // Método para transição instantânea (sem animação) - útil para casos especiais
     public void OpenScreenInstant(string screenName)
     {

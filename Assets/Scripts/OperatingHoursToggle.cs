@@ -22,7 +22,7 @@ public class OperatingHoursToggle : MonoBehaviour
 
     [Header("Tecla de debug")]
     [Tooltip("Tecla para alternar o modo debug (fora do horário).")]
-    public KeyCode debugKey = KeyCode.M;
+    public KeyCode debugKey = KeyCode.D;
 
     private bool debugOverrideActive = false;
 

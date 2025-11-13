@@ -7,7 +7,7 @@ public class CAPTURA : MonoBehaviour
     public Text countDownText;
     public RenderTexture webcamRenderTexture; // RenderTexture da webcam (atribuir via Inspector)
     public string validationScreenName = "VALIDACAO"; // Nome da tela de validaçãos
-    public int totalSeconds = 3;
+    public int totalSeconds = 5;
 
     private Coroutine countdownRoutine;
 
