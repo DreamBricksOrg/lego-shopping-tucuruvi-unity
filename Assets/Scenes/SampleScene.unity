@@ -612,8 +612,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WebcamToRenderTexture
   deviceName: 
   deviceIndex: 0
-  requestedWidth: 1080
-  requestedHeight: 1920
+  requestedWidth: 1280
+  requestedHeight: 720
   requestedFPS: 60
   rotation: 0
   flipHorizontal: 0
@@ -625,6 +625,7 @@ MonoBehaviour:
   rotateConsumerTransform: 0
   consumerTransform: {fileID: 0}
   playOnStart: 1
+  rotateBlitShader: {fileID: 4800000, guid: 2d9c59ad926ab794b9c77e4cd0ec70e5, type: 3}
   useRotationFromConfig: 1
 --- !u!1 &305309517
 GameObject:

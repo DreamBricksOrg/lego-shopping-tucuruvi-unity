@@ -51,6 +51,10 @@ public class WebcamToRenderTexture : MonoBehaviour
     private Vector3 originalConsumerScale = Vector3.one;
     private ConfigManager config;
 
+    [Header("Shader")]
+    [Tooltip("Referência ao shader de rotação/flip para garantir inclusão no build.")]
+    [SerializeField] private Shader rotateBlitShader;
+
     [Header("Config")]
     [Tooltip("Usar rotação vinda de StreamingAssets/config.ini -> [Cam] Rotation.")]
     public bool useRotationFromConfig = true;
@@ -70,9 +74,12 @@ public class WebcamToRenderTexture : MonoBehaviour
 
     void Start()
     {
-        if (playOnStart)
+        // Primeiro, aplica configurações vindas do config.ini (garante que a webcam
+        // seja inicializada com os parâmetros corretos no build).
+        ApplyCamSettingsFromConfig();
+        if (useRotationFromConfig)
         {
-            InitializeAndPlay();
+            ApplyRotationFromConfig();
         }
 
         if (consumerTransform == null)
@@ -84,11 +91,9 @@ public class WebcamToRenderTexture : MonoBehaviour
             originalConsumerScale = consumerTransform.localScale;
         }
 
-        // Mantém leitura também no Start, caso Awake seja chamado em ordem diferente
-        ApplyCamSettingsFromConfig();
-        if (useRotationFromConfig)
+        if (playOnStart)
         {
-            ApplyRotationFromConfig();
+            InitializeAndPlay();
         }
     }
 
@@ -137,10 +142,13 @@ public class WebcamToRenderTexture : MonoBehaviour
                 // Material para aplicar rotação/flip no blit
                 if (blitMaterial == null)
                 {
-                    var shader = Shader.Find("Hidden/WebcamRotateBlit");
+                    // Tenta carregar de referência serializada, depois Resources, depois Shader.Find
+                    var shader = rotateBlitShader
+                                 ?? Resources.Load<Shader>("WebcamRotateBlit")
+                                 ?? Shader.Find("Hidden/WebcamRotateBlit");
                     if (shader == null)
                     {
-                        // Fallback: se shader não encontrado, faz blit direto
+                        Debug.LogWarning("[WebcamToRenderTexture] Shader de rotação/flip não encontrado; aplicando blit sem rotação.");
                         Graphics.Blit(webcamTexture, target);
                         return;
                     }
