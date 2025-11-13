@@ -4,14 +4,16 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Collections;
+using System.Runtime.CompilerServices;
 
 public class MANUTENCAO : MonoBehaviour
 {
-    private MANUTENCAO Instance;
+    // Singleton
+    public static MANUTENCAO Instance { get; private set; }
 
     [Header("Tela de manutenção")]
     [Tooltip("GameObject que contém a imagem da tela de manutenção.")]
-    [SerializeField] private GameObject maintenanceScreen;
+    [SerializeField] public GameObject maintenanceScreen;
     [Tooltip("Tecla para ativar a tela de manutenção.")]
     [SerializeField] private KeyCode triggerKey = KeyCode.M;
 
@@ -24,12 +26,37 @@ public class MANUTENCAO : MonoBehaviour
     [Min(0.5f)] public float pollIntervalSeconds = 5f;
     [Tooltip("Timeout (segundos) para cada requisição de verificação.")]
     [Range(1, 60)] public int requestTimeoutSeconds = 5;
+    public bool isMaintenanceHeldActive = false;
 
     private Coroutine pollingRoutine;
+
+    private ConfigManager cfg;
+
+    public bool isMaintEnable = false;
+
 
     private void Awake()
     {
         Instance = this;
+
+        cfg = new();
+        string maintStr = null;
+        maintStr = cfg.GetValue("Config", "isMaintEnable");
+        if (string.IsNullOrEmpty(maintStr)) maintStr = cfg.GetValue("Config", "IsMaintEnable");
+        if (TryParseBoolFlexible(maintStr, out bool parsedMaintEnable))
+        {
+            this.isMaintEnable = parsedMaintEnable;
+        }
+
+        gameObject.SetActive(isMaintEnable);
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
     }
 
     private void OnEnable()
@@ -49,8 +76,9 @@ public class MANUTENCAO : MonoBehaviour
 
     void EnableMaintenanceScreen()
     {
-         if (Input.GetKeyDown(triggerKey))
+        if (Input.GetKeyDown(triggerKey))
         {
+            isMaintenanceHeldActive = !isMaintenanceHeldActive;
             if (maintenanceScreen == null)
             {
                 Debug.LogWarning("[MANUTENCAO] 'maintenanceScreen' não atribuído no Inspector.");
@@ -62,13 +90,8 @@ public class MANUTENCAO : MonoBehaviour
 
             if (isActive)
             {
-                if (cg != null)
-                {
-                    cg.alpha = 0f;
-                    cg.interactable = false;
-                    cg.blocksRaycasts = false;
-                }
-                maintenanceScreen.SetActive(false);
+                // Centraliza a desativação da tela de manutenção
+                DisableMaintenanceScreen();
 
                 if (UIManager.Instance != null)
                 {
@@ -172,7 +195,14 @@ public class MANUTENCAO : MonoBehaviour
                 if (IsMaintenanceActive())
                 {
                     Debug.Log("[MANUTENCAO] Servidor OK (200). Saindo de manutenção e voltando para CTA.");
-                    ActivateCTA();
+                    if (isMaintenanceHeldActive)
+                    {
+                        Debug.Log("[MANUTENCAO] Ignorando ação de sair de manutenção enquanto segurado.");
+                    }
+                    else
+                    {
+                        ActivateCTA();
+                    }
                 }
                 else
                 {
@@ -203,6 +233,12 @@ public class MANUTENCAO : MonoBehaviour
         return maintenanceScreen != null && maintenanceScreen.activeSelf;
     }
 
+    // Exposição pública do estado de hold, utilizada por outros scripts
+    public bool IsMaintenanceHeldActive()
+    {
+        return isMaintenanceHeldActive && IsMaintenanceActive();
+    }
+
     private bool IsCTAActive()
     {
         var ui = UIManager.Instance;
@@ -228,7 +264,7 @@ public class MANUTENCAO : MonoBehaviour
         return null;
     }
 
-    private void ActivateMaintenance()
+    public void ActivateMaintenance()
     {
         var ui = UIManager.Instance;
         if (ui != null)
@@ -253,19 +289,48 @@ public class MANUTENCAO : MonoBehaviour
         }
     }
 
-    private void ActivateCTA()
+    // Ativa manutenção com retenção (hold): mantém a tela de manutenção ativa e impede saídas automáticas
+    public void ActivateMaintenanceHold()
     {
+        // Se já está em hold e a tela está ativa, evita trabalho desnecessário
+        if (isMaintenanceHeldActive && IsMaintenanceActive())
+        {
+            Debug.Log("[MANUTENCAO] Manutenção hold já ativa; nenhuma ação necessária.");
+            return;
+        }
+
+        isMaintenanceHeldActive = true;
+        Debug.Log("[MANUTENCAO] Hold de manutenção ativado.");
+
+        // Desabilita demais telas; UIManager já preserva manutenção quando hold está ativo
+        var ui = UIManager.Instance;
+        if (ui != null)
+        {
+            ui.DisableAllScreens();
+        }
+
+        // Garante que a tela de manutenção está visível e interativa
         if (maintenanceScreen != null)
         {
+            maintenanceScreen.SetActive(true);
             var cg = maintenanceScreen.GetComponent<CanvasGroup>();
             if (cg != null)
             {
-                cg.alpha = 0f;
-                cg.interactable = false;
-                cg.blocksRaycasts = false;
+                cg.alpha = 1f;
+                cg.interactable = true;
+                cg.blocksRaycasts = true;
             }
-            maintenanceScreen.SetActive(false);
         }
+        else
+        {
+            Debug.LogWarning("[MANUTENCAO] 'maintenanceScreen' não atribuído ao ativar manutenção hold.");
+        }
+    }
+
+    private void ActivateCTA()
+    {
+        // Centraliza a desativação da manutenção
+        DisableMaintenanceScreen();
 
         var ui = UIManager.Instance;
         if (ui != null)
@@ -276,5 +341,34 @@ public class MANUTENCAO : MonoBehaviour
         {
             Debug.LogWarning("[MANUTENCAO] UIManager.Instance não disponível para abrir CTA.");
         }
+    }
+
+    private void DisableMaintenanceScreen()
+    {
+        if (maintenanceScreen == null)
+        {
+            Debug.LogWarning("[MANUTENCAO] 'maintenanceScreen' não atribuído ao desativar manutenção.");
+            return;
+        }
+
+        var cg = maintenanceScreen.GetComponent<CanvasGroup>();
+        if (cg != null)
+        {
+            cg.alpha = 0f;
+            cg.interactable = false;
+            cg.blocksRaycasts = false;
+        }
+
+        maintenanceScreen.SetActive(false);
+    }
+
+    private bool TryParseBoolFlexible(string s, out bool value)
+    {
+        value = false;
+        if (string.IsNullOrEmpty(s)) return false;
+        var t = s.Trim().ToLowerInvariant();
+        if (t == "true" || t == "1" || t == "yes" || t == "on") { value = true; return true; }
+        if (t == "false" || t == "0" || t == "no" || t == "off") { value = false; return true; }
+        return false;
     }
 }

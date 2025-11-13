@@ -33,7 +33,7 @@ public class VALIDACAO : MonoBehaviour
         currentTime = totalTime;
         timerRunning = true;
         isProcessing = false;
-        
+
         // Popular a imagem capturada, se houver
         if (sendImage != null && PendingImage != null)
         {
@@ -69,10 +69,18 @@ public class VALIDACAO : MonoBehaviour
             if (!isProcessing)
             {
                 SaveLog("TOTEM_VALIDACAO_TEMPO_ESGOTADO");
-                SceneManager.LoadScene("SampleScene");
+                // Bloqueia troca de cena se manutenção estiver em hold
+                if (MANUTENCAO.Instance != null && MANUTENCAO.Instance.maintenanceScreen.activeSelf)
+                {
+                    Debug.Log("[VALIDACAO] Manutenção em hold; bloqueando troca de cena.");
+                }
+                else
+                {
+                    SceneManager.LoadScene("SampleScene");
+                }
             }
         }
-        
+
         if (spinner != null && spinner.activeInHierarchy)
         {
             spinner.transform.Rotate(0f, 0f, spinnerRotateSpeed * Time.deltaTime);
@@ -222,6 +230,19 @@ public class VALIDACAO : MonoBehaviour
                         break;
                     case "error":
                         Debug.LogError($"[VALIDACAO] Erro no job: {js.error}");
+
+                        if (MANUTENCAO.Instance.isMaintEnable)
+                        {
+
+                            SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", js.error);
+
+                            var manutencao = MANUTENCAO.Instance;
+                            if (manutencao != null)
+                            {
+                                manutencao.ActivateMaintenance();
+                            }
+                        }
+
                         ResetUIAfterProcess();
                         yield break;
                     case "done":
@@ -285,7 +306,7 @@ public class VALIDACAO : MonoBehaviour
         StartCoroutine(SaveLogInNewLogCenterCoroutine(message, "INFO", new List<string> { "totem" }, additional));
     }
 
-    IEnumerator SaveLogCoroutine(string message,string additional)
+    IEnumerator SaveLogCoroutine(string message, string additional)
     {
         yield return LogUtil.GetDatalogFromJsonCoroutine((dataLog) =>
         {
