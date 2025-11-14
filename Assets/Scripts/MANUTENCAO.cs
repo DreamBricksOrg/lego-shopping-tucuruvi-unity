@@ -26,6 +26,8 @@ public class MANUTENCAO : MonoBehaviour
     [Min(0.5f)] public float pollIntervalSeconds = 5f;
     [Tooltip("Timeout (segundos) para cada requisição de verificação.")]
     [Range(1, 60)] public int requestTimeoutSeconds = 5;
+    [Tooltip("Número de respostas 400 consecutivas para entrar em manutenção.")]
+    [Min(1)] public int badRequestThreshold = 2;
     public bool isMaintenanceHeldActive = false;
 
     private Coroutine pollingRoutine;
@@ -33,6 +35,7 @@ public class MANUTENCAO : MonoBehaviour
     private ConfigManager cfg;
 
     public bool isMaintEnable = false;
+    private int consecutiveBadRequestCount = 0;
 
 
     private void Awake()
@@ -192,6 +195,8 @@ public class MANUTENCAO : MonoBehaviour
 
             if (code == 200)
             {
+                // Reset de contagem ao receber sucesso
+                consecutiveBadRequestCount = 0;
                 if (IsMaintenanceActive())
                 {
                     Debug.Log("[MANUTENCAO] Servidor OK (200). Saindo de manutenção e voltando para CTA.");
@@ -211,18 +216,32 @@ public class MANUTENCAO : MonoBehaviour
             }
             else if (code == 400)
             {
-                if (IsCTAActive())
+                // Incrementa e só entra em manutenção após atingir o limiar
+                consecutiveBadRequestCount++;
+                Debug.Log($"[MANUTENCAO] Servidor 400. Contagem consecutiva={consecutiveBadRequestCount}/{badRequestThreshold}.");
+                if (consecutiveBadRequestCount >= badRequestThreshold)
                 {
-                    Debug.Log("[MANUTENCAO] Servidor retornou 400. Entrando em manutenção e desativando CTA.");
-                    ActivateMaintenance();
+                    consecutiveBadRequestCount = 0; // reseta após acionar
+                    if (IsCTAActive())
+                    {
+                        Debug.Log("[MANUTENCAO] Limiar de 400 consecutivos atingido. Entrando em manutenção e desativando CTA.");
+                        ActivateMaintenance();
+                    }
+                    else
+                    {
+                        Debug.Log("[MANUTENCAO] Limiar atingido, mas já em manutenção; mantendo estado.");
+                    }
                 }
                 else
                 {
-                    Debug.Log("[MANUTENCAO] Servidor 400. Já em manutenção, mantendo estado.");
+                    // Abaixo do limiar: manter estado atual
+                    Debug.Log("[MANUTENCAO] Aguardando próxima verificação para confirmar manutenção.");
                 }
             }
             else
             {
+                // Qualquer outro código diferente de 200/400 reseta contagem
+                consecutiveBadRequestCount = 0;
                 Debug.LogWarning($"[MANUTENCAO] HTTP {code} não tratado explicitamente. Mantendo estado.");
             }
         }

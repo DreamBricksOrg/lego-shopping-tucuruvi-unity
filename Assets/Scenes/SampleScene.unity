@@ -342,6 +342,8 @@ MonoBehaviour:
   timerRunning: 0
   totalTime: 0
   currentTime: 0
+  maxQrRetries: 3
+  retryDelaySeconds: 2
   qrCodeImage: {fileID: 1348568679}
 --- !u!1 &53153793
 GameObject:
@@ -896,7 +898,7 @@ MonoBehaviour:
   triggerKey: 109
   ctaScreen: CTA
   serverUrl: https://dbcomfyui5090.ngrok.app
-  pollIntervalSeconds: 10
+  pollIntervalSeconds: 180
   requestTimeoutSeconds: 4
   isMaintenanceHeldActive: 0
   isMaintEnable: 0

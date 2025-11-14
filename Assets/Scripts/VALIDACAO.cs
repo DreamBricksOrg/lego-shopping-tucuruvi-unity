@@ -20,6 +20,10 @@ public class VALIDACAO : MonoBehaviour
     public float spinnerRotateSpeed = 180f; // graus por segundo
     public static Texture2D PendingImage;
     private bool isProcessing = false;
+    [Min(1)] public int statusBadRequestThreshold = 2;
+    private int consecutiveStatusBadRequests = 0;
+    [Min(1)] public int jobErrorThreshold = 2;
+    private int consecutiveJobErrors = 0;
 
 
     private void Awake()
@@ -198,9 +202,39 @@ public class VALIDACAO : MonoBehaviour
                 yield return req.SendWebRequest();
                 if (req.result != UnityWebRequest.Result.Success)
                 {
-                    Debug.LogError($"[VALIDACAO] Falha ao consultar status: {req.error}");
-                    ResetUIAfterProcess();
-                    yield break;
+                    // Tratar especificamente respostas 400 com limiar de consecutivos
+                    long code = req.responseCode;
+                    if (code == 400)
+                    {
+                        consecutiveStatusBadRequests++;
+                        Debug.LogWarning($"[VALIDACAO] Status HTTP 400 na consulta de job. Contagem consecutiva={consecutiveStatusBadRequests}/{statusBadRequestThreshold}.");
+
+                        if (consecutiveStatusBadRequests >= statusBadRequestThreshold)
+                        {
+                            consecutiveStatusBadRequests = 0; // reseta após acionar
+
+                            if (MANUTENCAO.Instance != null && MANUTENCAO.Instance.isMaintEnable)
+                            {
+                                SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", $"HTTP 400 consecutivo (limiar: {statusBadRequestThreshold})");
+                                MANUTENCAO.Instance.ActivateMaintenance();
+                            }
+
+                            ResetUIAfterProcess();
+                            yield break;
+                        }
+                        else
+                        {
+                            // Mantém polling para confirmar próximas ocorrências
+                            Debug.Log("[VALIDACAO] Aguardando nova tentativa antes de acionar manutenção.");
+                            // Não reseta UI, manter spinner e continuar
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError($"[VALIDACAO] Falha ao consultar status: {req.error} (HTTP {code})");
+                        ResetUIAfterProcess();
+                        yield break;
+                    }
                 }
 
                 JobStatusResponse js = null;
@@ -224,23 +258,32 @@ public class VALIDACAO : MonoBehaviour
                 {
                     case "queued":
                         // aguardando
+                        consecutiveStatusBadRequests = 0; // sucesso na requisição
+                        consecutiveJobErrors = 0; // reset de erros consecutivos
                         break;
                     case "processing":
                         // processando
+                        consecutiveStatusBadRequests = 0; // sucesso na requisição
+                        consecutiveJobErrors = 0; // reset de erros consecutivos
                         break;
                     case "error":
                         Debug.LogError($"[VALIDACAO] Erro no job: {js.error}");
+                        consecutiveStatusBadRequests = 0; // a requisição foi bem-sucedida, mas o job errou
+                        consecutiveJobErrors++;
+                        Debug.LogWarning($"[VALIDACAO] Job retornou 'error'. Contagem consecutiva={consecutiveJobErrors}/{jobErrorThreshold}.");
 
-                        if (MANUTENCAO.Instance.isMaintEnable)
+                        if (consecutiveJobErrors >= jobErrorThreshold)
                         {
-
-                            SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", js.error);
-
-                            var manutencao = MANUTENCAO.Instance;
-                            if (manutencao != null)
+                            consecutiveJobErrors = 0; // reseta após acionar
+                            if (MANUTENCAO.Instance != null && MANUTENCAO.Instance.isMaintEnable)
                             {
-                                manutencao.ActivateMaintenance();
+                                SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", js.error);
+                                MANUTENCAO.Instance.ActivateMaintenance();
                             }
+                        }
+                        else
+                        {
+                            Debug.Log("[VALIDACAO] Aguardando nova tentativa antes de acionar manutenção por 'error'.");
                         }
 
                         ResetUIAfterProcess();
@@ -253,6 +296,8 @@ public class VALIDACAO : MonoBehaviour
                             SaveLog("TOTEM_IMAGEM_RECEBIDA", js.image_url);
 
                         }
+                        consecutiveStatusBadRequests = 0; // sucesso na requisição
+                        consecutiveJobErrors = 0; // reset de erros consecutivos
                         if (UIManager.Instance != null)
                         {
                             UIManager.Instance.OpenScreen("AGRADECIMENTO");
