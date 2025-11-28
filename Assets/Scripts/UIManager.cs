@@ -321,6 +321,11 @@ public class UIManager : MonoBehaviour
        });
     }
 
+    public void Restart()
+    {
+        SceneManager.LoadScene("SampleScene");
+    }
+
     // Método para parar todas as animações em caso de necessidade
     public void StopAllAnimations()
     {
