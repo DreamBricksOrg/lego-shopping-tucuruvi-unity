@@ -198,21 +198,27 @@ public class QRCODE : MonoBehaviour
     IEnumerator SaveLogInNewLogCenterCoroutine(string message, string level, List<string> tags, string additional)
     {
         yield return LogUtilSdk.GetDatalogFromJsonCoroutine((dataLog) =>
-       {
-           if (dataLog != null)
-           {
-               dataLog.message = message;
-               dataLog.level = level;
-               dataLog.tags = tags;
-               dataLog.data = new { additional };
-               LogUtilSdk.SaveLogToJson(dataLog);
-           }
-           else
-           {
-               Debug.LogError("Erro ao carregar o DataLog do JSON.");
-           }
-               SceneManager.LoadScene("SampleScene");
-
-       });
+        {
+            if (dataLog != null)
+            {
+                dataLog.message = message;
+                dataLog.level = level;
+                dataLog.tags = tags;
+                dataLog.data = new { additional };
+                try
+                {
+                    LogUtilSdk.SaveLogToJson(dataLog);
+                }
+                    catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"Falha ao salvar log: {ex.Message}");
+                }
+            }
+            else
+            {
+                Debug.LogError("Erro ao carregar o DataLog do JSON.");
+            }
+        });
+        SceneManager.LoadScene("SampleScene");
     }
 }
