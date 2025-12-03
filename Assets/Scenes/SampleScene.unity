@@ -344,9 +344,11 @@ MonoBehaviour:
   timerRunning: 0
   totalTime: 0
   currentTime: 0
-  maxQrRetries: 3
+  maxQrRetries: 5
   retryDelaySeconds: 2
   qrCodeImage: {fileID: 1348568679}
+  sessionPollMaxAttempts: 60
+  sessionPollDelaySeconds: 2
 --- !u!1 &53153793
 GameObject:
   m_ObjectHideFlags: 0
@@ -555,7 +557,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 2800000, guid: 8ae388e033606294abe7d48a0c5fc321, type: 3}
+  m_Texture: {fileID: 2800000, guid: 05cbaba90f5544542a8a8ad9c19f6d80, type: 3}
   m_UVRect:
     serializedVersion: 2
     x: 0
@@ -2287,7 +2289,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 2800000, guid: b736f5dba2b791041b7afee5ee1049de, type: 3}
+  m_Texture: {fileID: 2800000, guid: 17a1273a806f1b5499b133c10d7ded86, type: 3}
   m_UVRect:
     serializedVersion: 2
     x: 0

@@ -16,10 +16,16 @@ public class QRCODE : MonoBehaviour
 
     // Tentativas de obter QR e atraso entre elas
     [Header("Retries de QR")]
-    public int maxQrRetries = 3;
+    public int maxQrRetries = 5;
     public float retryDelaySeconds = 2f;
 
     public RawImage qrCodeImage;
+
+    [Header("Polling de Sessão")]
+    public int sessionPollMaxAttempts = 60;
+    public float sessionPollDelaySeconds = 2f;
+    private string currentSessionId;
+    private bool sessionPollingStarted;
 
     private void Awake()
     {
@@ -53,17 +59,17 @@ public class QRCODE : MonoBehaviour
             SaveLog("TOTEM_QRCODE_TEMPO_ESGOTADO");
         }
 
-        if (UDPReceiver.Instance != null)
-        {
-            string latest = UDPReceiver.Instance.GetLastestData();
-            if (!string.IsNullOrEmpty(latest))
-            {
-                if (latest.ToUpper() == "INSTRUCOES")
-                {
-                    UIManager.Instance.OpenScreen(latest.ToUpper());
-                }
-            }
-        }
+        // if (UDPReceiver.Instance != null)
+        // {
+        //     string latest = UDPReceiver.Instance.GetLastestData();
+        //     if (!string.IsNullOrEmpty(latest))
+        //     {
+        //         if (latest.ToUpper() == "INSTRUCOES")
+        //         {
+        //             UIManager.Instance.OpenScreen(latest.ToUpper());
+        //         }
+        //     }
+        // }
     }
 
     private void OnEspaceKeyDown(){
@@ -80,6 +86,7 @@ public class QRCODE : MonoBehaviour
         public string qr_svg;
         public string short_url;
         public string slug;
+        public string sessionId;
     }
 
     private IEnumerator FetchAndApplyQr()
@@ -116,6 +123,17 @@ public class QRCODE : MonoBehaviour
                     try
                     {
                         resp = JsonUtility.FromJson<QrGenResponse>(json);
+                        Debug.Log(resp.short_url);
+
+                        if (resp != null && !string.IsNullOrEmpty(resp.sessionId))
+                        {
+                            currentSessionId = resp.sessionId;
+                            if (!sessionPollingStarted)
+                            {
+                                sessionPollingStarted = true;
+                                StartCoroutine(PollSessionStep(currentSessionId));
+                            }
+                        }
                     }
                     catch (System.Exception ex)
                     {
@@ -170,6 +188,76 @@ public class QRCODE : MonoBehaviour
         {
             Debug.LogError("[QRCODE] Todas as tentativas de obter/aplicar o QR falharam.");
         }
+    }
+
+    [System.Serializable]
+    private class SessionResponse
+    {
+        public string sessionId;
+        public string step;
+    }
+
+    private IEnumerator PollSessionStep(string sessionId)
+    {
+        if (string.IsNullOrEmpty(serverUrl) || string.IsNullOrEmpty(sessionId))
+        {
+            yield break;
+        }
+
+        string endpoint = (serverUrl ?? string.Empty).TrimEnd('/') + "/totem/session/" + sessionId;
+        int attempts = 0;
+
+        while (attempts < Mathf.Max(1, sessionPollMaxAttempts))
+        {
+            attempts++;
+
+            using (UnityWebRequest req = UnityWebRequest.Get(endpoint))
+            {
+                req.downloadHandler = new DownloadHandlerBuffer();
+                req.SetRequestHeader("Accept", "application/json");
+
+                yield return req.SendWebRequest();
+
+#if UNITY_2020_1_OR_NEWER
+                if (req.result != UnityWebRequest.Result.Success)
+#else
+                if (req.isNetworkError || req.isHttpError)
+#endif
+                {
+                    Debug.LogWarning($"[QRCODE] Falha no polling (tentativa {attempts}): {req.error}");
+                }
+                else
+                {
+                    var json = req.downloadHandler.text;
+                    SessionResponse resp = null;
+                    try
+                    {
+                        resp = JsonUtility.FromJson<SessionResponse>(json);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[QRCODE] Erro ao parsear sessão na tentativa {attempts}: {ex.Message}");
+                    }
+
+                    var step = resp != null ? resp.step : null;
+                    if (!string.IsNullOrEmpty(step))
+                    {
+                        if (step.Equals("continue", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            UIManager.Instance.OpenScreen("INSTRUCOES");
+                            yield break;
+                        }
+                    }
+                }
+            }
+
+            if (attempts < Mathf.Max(1, sessionPollMaxAttempts))
+            {
+                yield return new WaitForSeconds(Mathf.Max(0f, sessionPollDelaySeconds));
+            }
+        }
+
+        Debug.LogWarning($"[QRCODE] Polling de sessão esgotado sem 'continue' (sessionId={sessionId}).");
     }
 
     void SaveLog(string message, string additional="")

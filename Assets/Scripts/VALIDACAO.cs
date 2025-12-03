@@ -161,12 +161,29 @@ public class VALIDACAO : MonoBehaviour
         WWWForm form = new WWWForm();
         form.AddBinaryData("image", pngBytes, "image.png", "image/png");
 
+        // Checagem prévia de conectividade
+        if (Application.internetReachability == NetworkReachability.NotReachable)
+        {
+            Debug.LogWarning("[VALIDACAO] Sem internet ao tentar enviar imagem.");
+            SaveLog("APP_SEM_INTERNET", "Falha no upload: sem internet");
+            ResetUIAfterProcess();
+            yield break;
+        }
+
         using (UnityWebRequest req = UnityWebRequest.Post(uploadUrl, form))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"[VALIDACAO] Upload falhou: {req.error}");
+                if (Application.internetReachability == NetworkReachability.NotReachable || req.responseCode == 0)
+                {
+                    Debug.LogWarning($"[VALIDACAO] Upload falhou por ausência de internet: {req.error}");
+                    SaveLog("APP_SEM_INTERNET", $"Upload: {req.error}");
+                }
+                else
+                {
+                    Debug.LogError($"[VALIDACAO] Upload falhou: {req.error}");
+                }
                 ResetUIAfterProcess();
                 yield break;
             }
@@ -197,6 +214,15 @@ public class VALIDACAO : MonoBehaviour
         string statusUrl = $"{baseUrl.TrimEnd('/')}/api/result?request_id={UnityWebRequest.EscapeURL(requestId)}";
         while (true)
         {
+            // Checagem prévia de conectividade
+            if (Application.internetReachability == NetworkReachability.NotReachable)
+            {
+                Debug.LogWarning("[VALIDACAO] Sem internet ao consultar status do job.");
+                SaveLog("APP_SEM_INTERNET", $"Status: request_id={requestId}");
+                ResetUIAfterProcess();
+                yield break;
+            }
+
             using (UnityWebRequest req = UnityWebRequest.Get(statusUrl))
             {
                 yield return req.SendWebRequest();
@@ -215,7 +241,9 @@ public class VALIDACAO : MonoBehaviour
 
                             if (MANUTENCAO.Instance != null && MANUTENCAO.Instance.isMaintEnable)
                             {
-                                SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", $"HTTP 400 consecutivo (limiar: {statusBadRequestThreshold})");
+                                string error = req.downloadHandler != null ? req.downloadHandler.text : string.Empty;
+                                SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", error);
+                                Debug.LogWarning($"[VALIDACAO] ERRO_JOB_ENTRANDO_EM_MANUNTENCAO: {error}");
                                 MANUTENCAO.Instance.ActivateMaintenance();
                             }
 
@@ -231,7 +259,15 @@ public class VALIDACAO : MonoBehaviour
                     }
                     else
                     {
-                        Debug.LogError($"[VALIDACAO] Falha ao consultar status: {req.error} (HTTP {code})");
+                        if (Application.internetReachability == NetworkReachability.NotReachable || code == 0)
+                        {
+                            Debug.LogWarning($"[VALIDACAO] Falha ao consultar status por ausência de internet: {req.error}");
+                            SaveLog("APP_SEM_INTERNET", $"Status: {req.error}");
+                        }
+                        else
+                        {
+                            Debug.LogError($"[VALIDACAO] Falha ao consultar status: {req.error} (HTTP {code})");
+                        }
                         ResetUIAfterProcess();
                         yield break;
                     }
@@ -278,6 +314,7 @@ public class VALIDACAO : MonoBehaviour
                             if (MANUTENCAO.Instance != null && MANUTENCAO.Instance.isMaintEnable)
                             {
                                 SaveLog("ERRO_JOB_ENTRANDO_EM_MANUNTENCAO", js.error);
+                                Debug.LogWarning($"[VALIDACAO] ERRO_JOB_ENTRANDO_EM_MANUNTENCAO: {js.error}");
                                 MANUTENCAO.Instance.ActivateMaintenance();
                             }
                         }
