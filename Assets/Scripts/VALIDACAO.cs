@@ -212,6 +212,7 @@ public class VALIDACAO : MonoBehaviour
     private IEnumerator PollJobStatus(string baseUrl, string requestId)
     {
         string statusUrl = $"{baseUrl.TrimEnd('/')}/api/result?request_id={UnityWebRequest.EscapeURL(requestId)}";
+        Debug.Log($"[VALIDACAO] Consultando status do job com request_id: {requestId}");
         while (true)
         {
             // Checagem prévia de conectividade

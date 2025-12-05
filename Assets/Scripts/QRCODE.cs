@@ -4,6 +4,8 @@ using UnityEngine.UI;
 using UnityEngine.Networking;
 using System.Collections.Generic;
 using System.Collections;
+using ZXing;
+using ZXing.Rendering;
 
 public class QRCODE : MonoBehaviour
 {
@@ -26,6 +28,8 @@ public class QRCODE : MonoBehaviour
     public float sessionPollDelaySeconds = 2f;
     private string currentSessionId;
     private bool sessionPollingStarted;
+
+    public string basicQrCodeUrl = "https://go.dbpe.com.br/VxvyVt";
 
     private void Awake()
     {
@@ -80,31 +84,29 @@ public class QRCODE : MonoBehaviour
     }
 
     [System.Serializable]
-    private class QrGenResponse
+    private class SessionStartResponse
     {
-        public string qr_png;
-        public string qr_svg;
-        public string short_url;
-        public string slug;
         public string sessionId;
+        public string step;
     }
 
     private IEnumerator FetchAndApplyQr()
     {
-        string endpoint = (serverUrl ?? string.Empty).TrimEnd('/') + "/totem/qrcode/init";
+        string endpoint = (serverUrl ?? string.Empty).TrimEnd('/') + "/totem/session/start";
         int attempts = 0;
         bool success = false;
 
         while (attempts < Mathf.Max(1, maxQrRetries) && !success)
         {
             attempts++;
-            Debug.Log($"[QRCODE] Tentativa {attempts}/{maxQrRetries} de obter QR em '{endpoint}'");
+            Debug.Log($"[QRCODE] Tentativa {attempts}/{maxQrRetries} de iniciar sessão em '{endpoint}'");
 
             using (UnityWebRequest req = new UnityWebRequest(endpoint, UnityWebRequest.kHttpVerbPOST))
             {
                 req.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes("{}"));
                 req.downloadHandler = new DownloadHandlerBuffer();
                 req.SetRequestHeader("Content-Type", "application/json");
+                req.SetRequestHeader("Accept", "application/json");
 
                 yield return req.SendWebRequest();
 
@@ -119,61 +121,36 @@ public class QRCODE : MonoBehaviour
                 else
                 {
                     var json = req.downloadHandler.text;
-                    QrGenResponse resp = null;
+                    SessionStartResponse resp = null;
                     try
                     {
-                        resp = JsonUtility.FromJson<QrGenResponse>(json);
-                        Debug.Log(resp.short_url);
-
+                        resp = JsonUtility.FromJson<SessionStartResponse>(json);
+                        
                         if (resp != null && !string.IsNullOrEmpty(resp.sessionId))
                         {
                             currentSessionId = resp.sessionId;
+                            // Constrói a URL final
+                            string finalUrl = $"{basicQrCodeUrl}?sid={currentSessionId}";
+                            Debug.Log($"[QRCODE] Sessão iniciada: {currentSessionId}. URL: {finalUrl}");
+
+                            // Gera o QR Code localmente
+                            GetQRCode(finalUrl);
+                            success = true;
+
                             if (!sessionPollingStarted)
                             {
                                 sessionPollingStarted = true;
                                 StartCoroutine(PollSessionStep(currentSessionId));
                             }
                         }
+                        else
+                        {
+                            Debug.LogWarning("[QRCODE] Resposta válida mas sem sessionId.");
+                        }
                     }
                     catch (System.Exception ex)
                     {
                         Debug.LogWarning($"[QRCODE] Erro ao parsear JSON na tentativa {attempts}: {ex.Message}");
-                        resp = null;
-                    }
-
-                    if (resp != null && !string.IsNullOrEmpty(resp.qr_png))
-                    {
-                        using (UnityWebRequest texReq = UnityWebRequestTexture.GetTexture(resp.qr_png))
-                        {
-                            yield return texReq.SendWebRequest();
-
-#if UNITY_2020_1_OR_NEWER
-                            if (texReq.result != UnityWebRequest.Result.Success)
-#else
-                            if (texReq.isNetworkError || texReq.isHttpError)
-#endif
-                            {
-                                Debug.LogWarning($"[QRCODE] Falha ao baixar PNG na tentativa {attempts}: {texReq.error}");
-                            }
-                            else
-                            {
-                                Texture2D tex = DownloadHandlerTexture.GetContent(texReq);
-                                if (qrCodeImage != null)
-                                {
-                                    qrCodeImage.texture = tex;
-                                    success = true;
-                                    Debug.Log("[QRCODE] QR aplicado com sucesso.");
-                                }
-                                else
-                                {
-                                    Debug.LogWarning("[QRCODE] qrCodeImage não está atribuído no Inspector.");
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[QRCODE] Resposta inválida: campo 'qr_png' ausente ou vazio.");
                     }
                 }
             }
@@ -186,7 +163,7 @@ public class QRCODE : MonoBehaviour
 
         if (!success)
         {
-            Debug.LogError("[QRCODE] Todas as tentativas de obter/aplicar o QR falharam.");
+            Debug.LogError("[QRCODE] Todas as tentativas de iniciar sessão falharam.");
         }
     }
 
@@ -308,5 +285,40 @@ public class QRCODE : MonoBehaviour
             }
         });
         SceneManager.LoadScene("SampleScene");
+    }
+
+    private void GetQRCode(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return;
+        if (qrCodeImage == null)
+        {
+             Debug.LogWarning("[QRCODE] qrCodeImage não está atribuído.");
+             return;
+        }
+        Texture2D qrTexture = GerarQRCodeZXing(url);
+        qrCodeImage.texture = qrTexture;
+    }
+
+    private Texture2D GerarQRCodeZXing(string texto)
+    {
+        var writer = new BarcodeWriter<PixelData>
+        {
+            Format = BarcodeFormat.QR_CODE,
+            Options = new ZXing.Common.EncodingOptions
+            {
+                Height = 256,
+                Width = 256,
+                Margin = 1
+            },
+            Renderer = new ZXing.Rendering.PixelDataRenderer()
+        };
+
+        PixelData pixelData = writer.Write(texto);
+
+        Texture2D tex = new Texture2D(pixelData.Width, pixelData.Height, TextureFormat.RGBA32, false);
+        tex.LoadRawTextureData(pixelData.Pixels);
+        tex.Apply();
+
+        return tex;
     }
 }
